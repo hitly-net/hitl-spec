@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hitly.net/spec/hitl/v0/response.json",
+  "title": "hitl/response/v0",
+  "description": "The outcome of a hitl/request/v0: the human's answer, or why there is none. See SPEC.md section 4.",
+  "type": "object",
+  "required": [
+    "spec",
+    "requestId",
+    "status",
+    "activity"
+  ],
+  "properties": {
+    "spec": {
+      "const": "hitl/response/v0"
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "status": {
+      "enum": [
+        "answered",
+        "declined",
+        "cancelled",
+        "expired"
+      ]
+    },
+    "value": {
+      "description": "The answer, typed per the request's answerType. For secret it is the ciphertext.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decidedBy": {
+      "type": "object",
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "human",
+            "group",
+            "service"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "decidedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "argsHash": {
+      "$ref": "#/$defs/sha256b64url"
+    },
+    "signature": {
+      "description": "Ed25519 signature over the RFC 8785 JCS form of this response with signature removed. v0 hosts SHOULD sign; null is allowed in v0.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "alg",
+            "kid",
+            "sig"
+          ],
+          "properties": {
+            "alg": {
+              "const": "Ed25519"
+            },
+            "kid": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sig": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{86}$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "activity": {
+      "type": "object",
+      "required": [
+        "presentedAt",
+        "items"
+      ],
+      "properties": {
+        "presentedAt": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When the ask was first shown to a reviewer, or null if it never was."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ref",
+              "sha256",
+              "openedAt"
+            ],
+            "properties": {
+              "ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/sha256b64url"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "openedAt": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "https://hitly.net/spec/hitl/v0/event.json"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "_meta": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+/[A-Za-z0-9._/-]+$"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "answered"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "value",
+          "decidedBy",
+          "decidedAt"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "declined"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "decidedBy",
+          "decidedAt"
+        ],
+        "not": {
+          "required": [
+            "value"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "cancelled",
+              "expired"
+            ]
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "value"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "expired"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "decidedBy"
+              ]
+            },
+            {
+              "required": [
+                "decidedAt"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256b64url": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$"
+    }
+  }
+}

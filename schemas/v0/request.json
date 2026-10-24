@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hitly.net/spec/hitl/v0/request.json",
+  "title": "hitl/request/v0",
+  "description": "An agent's ask to a human: one question with a typed answer. See SPEC.md section 3.",
+  "type": "object",
+  "required": ["spec", "question", "answerType", "requester"],
+  "properties": {
+    "spec": { "const": "hitl/request/v0" },
+    "id": {
+      "$ref": "#/$defs/identifier",
+      "description": "Assigned by the host. A host MUST refuse an agent-submitted request that carries id; the host returns the request with id set."
+    },
+    "idempotencyKey": { "$ref": "#/$defs/identifier" },
+    "question": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 160,
+      "pattern": "\\?$",
+      "description": "One sentence, at most 160 characters, ending with a question mark."
+    },
+    "answerType": { "enum": ["binary", "single", "multi", "number", "text", "secret"] },
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/option" }
+    },
+    "bounds": { "type": "object" },
+    "default": { "description": "Optional default answer. Type depends on answerType. The UI decides whether to pre-select it." },
+    "recommended": {
+      "type": "object",
+      "required": ["value", "reason"],
+      "properties": {
+        "value": {},
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "reasonRequired": {
+      "type": "array",
+      "description": "Answer values for which the reviewer MUST give a reason. Defaults to [\"reject\"] for binary.",
+      "items": { "type": ["string", "number"] },
+      "uniqueItems": true
+    },
+    "deadline": { "type": "string", "format": "date-time" },
+    "onExpiry": {
+      "const": "expire",
+      "description": "Absent or \"expire\" in v0. Other values are reserved. Expiry never auto-decides."
+    },
+    "context": { "$ref": "#/$defs/context" },
+    "action": {
+      "type": "object",
+      "required": ["name", "argsHash"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "argsHash": { "$ref": "#/$defs/sha256b64url" }
+      },
+      "additionalProperties": false
+    },
+    "risk": {
+      "type": "object",
+      "properties": {
+        "level": { "enum": ["low", "medium", "high", "critical"] },
+        "reversible": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "requester": {
+      "type": "object",
+      "required": ["agentId"],
+      "properties": {
+        "agentId": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "onBehalfOf": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "encryption": {
+      "type": "object",
+      "required": ["publicKey", "alg"],
+      "properties": {
+        "publicKey": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_-]+$" },
+        "alg": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "_meta": { "$ref": "#/$defs/meta" }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "answerType": { "const": "binary" } } },
+      "then": {
+        "required": ["options"],
+        "properties": {
+          "options": {
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "properties": { "value": { "enum": ["approve", "reject"] } } },
+            "allOf": [
+              { "contains": { "properties": { "value": { "const": "approve" } } } },
+              { "contains": { "properties": { "value": { "const": "reject" } } } }
+            ]
+          },
+          "default": { "enum": ["approve", "reject"] },
+          "recommended": { "properties": { "value": { "enum": ["approve", "reject"] } } },
+          "reasonRequired": { "items": { "enum": ["approve", "reject"] } }
+        },
+        "not": { "anyOf": [{ "required": ["bounds"] }, { "required": ["encryption"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "answerType": { "const": "single" } } },
+      "then": {
+        "required": ["options"],
+        "properties": {
+          "default": { "type": "string" },
+          "recommended": { "properties": { "value": { "type": "string" } } },
+          "reasonRequired": { "items": { "type": "string" } }
+        },
+        "not": { "anyOf": [{ "required": ["bounds"] }, { "required": ["encryption"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "answerType": { "const": "multi" } } },
+      "then": {
+        "required": ["options"],
+        "properties": {
+          "bounds": { "$ref": "#/$defs/multiBounds" },
+          "default": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "recommended": { "properties": { "value": { "type": "array", "items": { "type": "string" }, "uniqueItems": true } } },
+          "reasonRequired": { "items": { "type": "string" } }
+        },
+        "not": { "required": ["encryption"] }
+      }
+    },
+    {
+      "if": { "properties": { "answerType": { "const": "number" } } },
+      "then": {
+        "properties": {
+          "bounds": { "$ref": "#/$defs/numberBounds" },
+          "default": { "type": "number" },
+          "recommended": { "properties": { "value": { "type": "number" } } },
+          "reasonRequired": { "items": { "type": "number" } }
+        },
+        "not": { "anyOf": [{ "required": ["options"] }, { "required": ["encryption"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "answerType": { "const": "text" } } },
+      "then": {
+        "properties": {
+          "bounds": { "$ref": "#/$defs/textBounds" },
+          "default": { "type": "string" },
+          "recommended": { "properties": { "value": { "type": "string" } } },
+          "reasonRequired": { "items": { "type": "string" } }
+        },
+        "not": { "anyOf": [{ "required": ["options"] }, { "required": ["encryption"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "answerType": { "const": "secret" } } },
+      "then": {
+        "required": ["encryption"],
+        "not": {
+          "anyOf": [
+            { "required": ["options"] },
+            { "required": ["bounds"] },
+            { "required": ["default"] },
+            { "required": ["recommended"] },
+            { "required": ["reasonRequired"] }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "identifier": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "sha256b64url": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$",
+      "description": "Unpadded base64url encoding of a SHA-256 digest (43 characters)."
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "not": { "const": "context" },
+      "description": "Item reference, unique within the request. \"context\" is reserved for the context markdown itself."
+    },
+    "option": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "numberBounds": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "step": { "type": "number", "exclusiveMinimum": 0 },
+        "unit": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "multiBounds": {
+      "type": "object",
+      "properties": {
+        "minItems": { "type": "integer", "minimum": 0 },
+        "maxItems": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "textBounds": {
+      "type": "object",
+      "properties": {
+        "minLength": { "type": "integer", "minimum": 0 },
+        "maxLength": { "type": "integer", "minimum": 1 },
+        "pattern": {
+          "type": "string",
+          "maxLength": 256,
+          "description": "RFC 9485 I-Regexp."
+        }
+      },
+      "additionalProperties": false
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "markdown": { "type": "string" },
+        "links": { "type": "array", "items": { "$ref": "#/$defs/link" } },
+        "attachments": { "type": "array", "items": { "$ref": "#/$defs/attachment" } }
+      },
+      "additionalProperties": false
+    },
+    "link": {
+      "type": "object",
+      "required": ["ref", "url", "label"],
+      "properties": {
+        "ref": { "$ref": "#/$defs/ref" },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "mustOpen": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "attachment": {
+      "type": "object",
+      "required": ["ref", "name", "mediaType", "size", "sha256"],
+      "properties": {
+        "ref": { "$ref": "#/$defs/ref" },
+        "name": { "type": "string", "minLength": 1 },
+        "mediaType": { "type": "string", "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+" },
+        "size": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256b64url" },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "inline": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "maxLength": 349528,
+          "description": "Base64 bytes for small files only (about 256 KB of content at most)."
+        },
+        "mustOpen": { "type": "boolean" }
+      },
+      "additionalProperties": false,
+      "oneOf": [{ "required": ["url"] }, { "required": ["inline"] }]
+    },
+    "meta": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+/[A-Za-z0-9._/-]+$",
+        "description": "Reverse-DNS prefixed keys, for example net.hitly/trace."
+      }
+    }
+  }
+}

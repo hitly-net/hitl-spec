@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hitly.net/spec/hitl/v0/event.json",
+  "title": "hitl/event/v0",
+  "description": "One reviewer activity event, part of the hash-chained decision evidence. See SPEC.md section 5.",
+  "type": "object",
+  "required": ["spec", "id", "requestId", "type", "at", "actor", "source", "prevHash", "hash"],
+  "properties": {
+    "spec": { "const": "hitl/event/v0" },
+    "id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "requestId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "type": { "enum": ["presented", "opened", "decided", "bytes", "scroll"] },
+    "itemRef": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "at": { "type": "string", "format": "date-time" },
+    "actor": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "enum": ["human", "group", "service"] },
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "source": { "enum": ["host", "client"] },
+    "data": { "type": "object" },
+    "prevHash": {
+      "oneOf": [{ "$ref": "#/$defs/sha256b64url" }, { "type": "null" }],
+      "description": "Hash of the previous event in this request's chain, or null for the first event."
+    },
+    "hash": { "$ref": "#/$defs/sha256b64url" },
+    "_meta": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z0-9-]+(\\.[a-z0-9-]+)+/[A-Za-z0-9._/-]+$" }
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "enum": ["presented", "decided"] } } },
+      "then": { "properties": { "source": { "const": "host" } }, "not": { "required": ["data"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "opened" } } },
+      "then": { "required": ["itemRef"], "not": { "required": ["data"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "bytes" } } },
+      "then": {
+        "required": ["itemRef", "data"],
+        "properties": {
+          "itemRef": { "not": { "const": "context" } },
+          "source": { "const": "host" },
+          "data": {
+            "type": "object",
+            "required": ["bytesServed", "bytesTotal"],
+            "properties": {
+              "bytesServed": { "type": "integer", "minimum": 0 },
+              "bytesTotal": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "scroll" } } },
+      "then": {
+        "required": ["itemRef", "data"],
+        "properties": {
+          "source": { "const": "client" },
+          "data": {
+            "type": "object",
+            "required": ["maxFraction", "reachedEnd"],
+            "properties": {
+              "maxFraction": { "type": "number", "minimum": 0, "maximum": 1 },
+              "reachedEnd": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256b64url": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+  }
+}
