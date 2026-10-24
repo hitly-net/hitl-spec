@@ -4,6 +4,10 @@
 
 > **Status: draft v0, comments wanted.** Field names are settled for this draft, but the shape will change once people other than the authors have had a go at it. Please leave feedback in GitHub Discussions under "v0 feedback".
 
+## Background
+
+The request-for-comment article [hitl: a standard shape for agents asking humans, v0 comments wanted](https://www.linkedin.com/pulse/hitl-standard-shape-agents-asking-humans-v0-comments-wanted-colley-hyv1f/) explains why this specification exists. Feedback is welcome in the article comments as well as in the [v0 feedback Discussion (#2)](https://github.com/hitly-net/hitl-spec/discussions/2).
+
 ## What is here
 
 * [SPEC.md](SPEC.md): the v0 specification.
