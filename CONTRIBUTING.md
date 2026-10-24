@@ -4,7 +4,7 @@ Thank you for taking the time to look at `hitl`. v0 is a draft and is meant to b
 
 ## Feedback
 
-* Start in GitHub Discussions, in the **v0 feedback** category. Questions, objections, use cases and "this would not work for us because..." are all welcome.
+* Start in GitHub Discussions, in the [v0 feedback](https://github.com/hitly-net/hitl-spec/discussions/2) discussion. Start a new discussion if your point deserves its own thread. Questions, objections, use cases and "this would not work for us because..." are all welcome.
 * The open questions listed in [SPEC.md section 15](SPEC.md#15-open-questions-for-v0-feedback) are a good place to start.
 * Please do not post credentials, personal data or details of security weaknesses in a live system in Discussions.
 
