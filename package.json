@@ -1,0 +1,14 @@
+{
+  "name": "hitl-spec",
+  "private": true,
+  "description": "Schemas, examples and checks for the hitl v0 specification.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "validate": "node scripts/validate.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}
