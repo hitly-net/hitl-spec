@@ -163,6 +163,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 * `declined`: the reviewer chose not to answer. `value` MUST be absent.
 * `cancelled`: the request was withdrawn (for example by the requester or the host) before an answer. `value` MUST be absent.
 * `expired`: the deadline passed with no answer (section 9). `value`, `decidedBy` and `decidedAt` MUST be absent.
+* A reviewer client MAY label the decline action Dismiss, Decline, Skip or similar. There is no separate `dismissed` status in v0: a local widget or tool payload such as `{dismissed: true}` (for example an AG-UI chat card) MUST be reported on the wire as `hitl/response/v0` with `status: "declined"` and no `value`. Do not confuse this with `cancelled`, which is an ask withdrawn by the requester or the host.
 * `decidedBy` records who decided. A shared identity, such as a team board login, is valid as `kind: "group"`. A host SHOULD use `kind: "human"` with a stable per-person `id` when it knows the individual.
 
 ### 4.3 Activity
@@ -312,6 +313,7 @@ These mappings are informative.
 
 * A request maps to an interrupt with the question as its message, a response schema derived as for MCP, `expiresAt` from `deadline`, and the request in metadata under `net.hitly/hitl-request`. When the request is bound to a tool call, the interrupt carries that `toolCallId`.
 * The resume entry carries `{value, reason}` as its payload and `decidedBy` and `signature` in metadata.
+* A resume that dismisses the interrupt without an answer, for example `{dismissed: true}`, maps to `declined`, not `cancelled`.
 
 ### 13.3 A2A input-required
 
