@@ -83,6 +83,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 * The host assigns `id` and returns it to the requester when it accepts the request. A host MUST refuse a submitted request that already carries `id`.
 * `idempotencyKey` is the requester's handle. A host SHOULD treat a repeat submission with the same `idempotencyKey` from the same requester as the same request and return the existing `id` rather than creating a second ask.
 * The response carries the host's `id` as `requestId`.
+* Create-once records (assigned `id`s and `idempotencyKey` dedupe) are kept for a retention period. A host SHOULD expose its retention period for create-once records (`idempotencyKey` / equivalent hash). Inside retention the host treats a repeat submission with the same key as the same request; after the window expires, the same key MAY create a new request. That window is what drives whether an agent could technically re-submit a request with the same hash, so without a stated retention "already created" is underspecified across restarts and long-lived agents. A requester's durable single-use record for a spent `requestId` (3.8) SHOULD last at least as long as the host's retention window for that request.
 
 ### 3.3 The question
 
@@ -133,6 +134,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 * `action.name` names the operation, for example `payments.refund`.
 * `action.argsHash` is `b64url(SHA-256(JCS(args)))`, where `args` is the exact argument object the requester will pass to the action.
 * The host MUST copy `argsHash` into the response. Before acting, the requester MUST recompute the hash over the arguments it is about to use and MUST NOT act if it differs from the response's `argsHash`. This stops an approval from being replayed against different arguments.
+* A response that authorises an action is **single-use**. The requester MUST record the use of the response's `requestId` durably before acting, and MUST NOT act again on that `requestId`, including after a restart. An "already used" set kept only in memory honours one yes twice across process death.
+* Recording the use before acting leaves a window: the requester may die after the record and before or during the action. After a restart it MUST treat that `requestId` as outcome unknown, MUST NOT act on it again, and either verifies the effect or raises a new request (4.2). It MUST NOT quietly count the action as done or as failed; treating an unknown as failed invites a second effect. Committing the use record and the action's effect in one transaction closes the window.
 * Test vectors are in [examples/vectors/args-hash.json](examples/vectors/args-hash.json).
 
 ### 3.9 Requester
@@ -165,6 +168,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 * `expired`: the deadline passed with no answer (section 9). `value`, `decidedBy` and `decidedAt` MUST be absent.
 * A reviewer client MAY label the decline action Dismiss, Decline, Skip or similar. There is no separate `dismissed` status in v0: a local widget or tool payload such as `{dismissed: true}` (for example an AG-UI chat card) MUST be reported on the wire as `hitl/response/v0` with `status: "declined"` and no `value`. Do not confuse this with `cancelled`, which is an ask withdrawn by the requester or the host.
 * `decidedBy` records who decided. A shared identity, such as a team board login, is valid as `kind: "group"`. A host SHOULD use `kind: "human"` with a stable per-person `id` when it knows the individual.
+* A request is **terminal** once it has a response (`answered`, `declined`, `cancelled` or `expired`): that `requestId` never changes state again, and a re-submit is always a **new request** with a new `requestId`, not a timestamped mutation of the old one.
+* Re-submitting after a decline or a rejection follows 3.2. If the agent revised the action after reading the reviewer's reasons: new `argsHash` and a new `idempotencyKey`. If the arguments are unchanged (a pure retry): a new `requestId`, the same `argsHash`, and a new `idempotencyKey`, or wait until the host's create-once retention expires; otherwise create-once returns the declined request instead of opening a new ask.
 
 ### 4.3 Activity
 
@@ -336,3 +341,5 @@ Please discuss these in GitHub Discussions under "v0 feedback".
 1. **Encryption algorithm for secret answers.** Which `alg` should v0 pin for `secret` answers (for example an HPKE suite, or JWE), and with it the exact ciphertext encoding returned in `value`?
 2. **Quorum and multi-approver for v1.** What should multiple approvers, quorum, four-eyes, delegation and escalation look like in v1, and what do regulated approvals need?
 3. **MCP `_meta` versus a SEP.** Should `hitl` stay a mapping onto MCP elicitation through `_meta` keys, or be proposed to MCP as a SEP (for example as the human-facing shape for SEP-2848)?
+4. **Post-decision disposition.** `hitl/response/v0` records the human decision and stops there (`answered`, `declined`, `cancelled`, `expired`). If the spec ever reports what happened after the answer, executed, not executed and **unknown** (for example a crash between recording the use and acting, 3.8) must all be first-class outcomes: treating unknown as failed invites a retry. No new v0 response status is added for this; the shape lines up with SEP-2848's required disposition field (section 14). Parked for v0 feedback, candidate for v1.
+5. **Standing / long-lived permissions.** Grants and leases ("approve this for six months") are parked for v1, see Discussion #9: the human answer that creates a standing permission stays a one-shot response, and v0 defines no grant wire types.
