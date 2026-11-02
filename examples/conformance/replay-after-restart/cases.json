@@ -1,0 +1,46 @@
+[
+  {
+    "name": "replay in the same process",
+    "section": "3.8",
+    "steps": [{ "present": 2, "expect": ["acted", "refused"] }],
+    "effects": 1
+  },
+  {
+    "name": "replay after a restart",
+    "section": "3.8",
+    "steps": [
+      { "present": 1, "expect": ["acted"] },
+      { "present": 1, "expect": ["refused"] }
+    ],
+    "effects": 1
+  },
+  {
+    "name": "kill after the record, before the action",
+    "section": "3.8",
+    "steps": [
+      { "present": 1, "killAt": "afterRecord" },
+      { "present": 1, "expect": ["unknown"] }
+    ],
+    "effects": 0
+  },
+  {
+    "name": "kill after the action",
+    "section": "3.8",
+    "steps": [
+      { "present": 1, "killAt": "afterEffect" },
+      { "present": 1, "expect": ["unknown"] }
+    ],
+    "effects": 1
+  },
+  {
+    "name": "control: a used set kept only in memory",
+    "section": "3.8",
+    "control": true,
+    "store": "memory",
+    "steps": [
+      { "present": 1, "expect": ["acted"] },
+      { "present": 1, "expect": ["acted"] }
+    ],
+    "effects": 2
+  }
+]

@@ -10,3 +10,4 @@ First public draft, published for comment.
 * `hitl/response/v0`: statuses `answered`, `declined`, `cancelled` and `expired`; the answer in `value`; `decidedBy`, `decidedAt`, `argsHash`; optional Ed25519 signature over JCS; reviewer `activity`.
 * `hitl/event/v0`: required `presented`, `opened` and `decided` events; optional `bytes` and `scroll`; hash-chained.
 * JSON Schema 2020-12 for all three messages, examples, test vectors and a validation workflow.
+* A replay-after-restart conformance check for the single-use rules in section 3.8, under `examples/conformance/`.

@@ -137,6 +137,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 * A response that authorises an action is **single-use**. The requester MUST record the use of the response's `requestId` durably before acting, and MUST NOT act again on that `requestId`, including after a restart. An "already used" set kept only in memory honours one yes twice across process death.
 * Recording the use before acting leaves a window: the requester may die after the record and before or during the action. After a restart it MUST treat that `requestId` as outcome unknown, MUST NOT act on it again, and either verifies the effect or raises a new request (4.2). It MUST NOT quietly count the action as done or as failed; treating an unknown as failed invites a second effect. Committing the use record and the action's effect in one transaction closes the window.
 * Test vectors are in [examples/vectors/args-hash.json](examples/vectors/args-hash.json).
+* A process-kill conformance check for these single-use rules is in [examples/conformance/replay-after-restart](examples/conformance/replay-after-restart/README.md).
 
 ### 3.9 Requester
 
