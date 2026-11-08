@@ -11,3 +11,4 @@ First public draft, published for comment.
 * `hitl/event/v0`: required `presented`, `opened` and `decided` events; optional `bytes` and `scroll`; hash-chained.
 * JSON Schema 2020-12 for all three messages, examples, test vectors and a validation workflow.
 * A replay-after-restart conformance check for the single-use rules in section 3.8, under `examples/conformance/`.
+* Section 3.2: a host SHOULD expose the ORIGINAL create-once request for reviewer verification (canonical payload plus content hash); no mutable display snapshot.
