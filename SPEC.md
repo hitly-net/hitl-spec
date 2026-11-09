@@ -128,7 +128,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 * `context.links[]` items are `{ref, url, label, description?, mustOpen?}`. `url` MUST use `https`. The reviewer client SHOULD show the real destination domain. The host MUST NOT fetch link targets server-side.
 * `context.attachments[]` items are `{ref, name, mediaType, size, sha256, url | inline, mustOpen?}`. Exactly one of `url` (https) or `inline` MUST be present. `inline` is base64 content for small files only, at most about 256 KB of content. `sha256` is the b64url SHA-256 of the file's bytes, so the evidence pins exactly what was shown.
 * `ref` identifies an item. It MUST be unique across `links` and `attachments` within a request. The ref `"context"` is reserved for the markdown itself (used by `scroll` events) and MUST NOT be used for an item.
-* `mustOpen: true` means the answer controls MUST stay disabled until the reviewer has opened that item. A host MUST NOT enforce `mustOpen` without recording the open as `openedAt` (section 5).
+* `mustOpen: true` means the **acting** answer controls (accept, reject, edit, respond and any other answer that takes an action) MUST stay disabled until the reviewer has opened that item. Ignore/dismiss is exempt: declining takes no action (see `declined` below), so a host MUST NOT require opens before a decline. A host MUST NOT enforce `mustOpen` without recording the open as `openedAt` (section 5).
 
 ### 3.8 Action binding
 

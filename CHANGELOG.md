@@ -12,3 +12,5 @@ First public draft, published for comment.
 * JSON Schema 2020-12 for all three messages, examples, test vectors and a validation workflow.
 * A replay-after-restart conformance check for the single-use rules in section 3.8, under `examples/conformance/`.
 * Section 3.2: a host SHOULD expose the ORIGINAL create-once request for reviewer verification (canonical payload plus content hash); no mutable display snapshot.
+* A non-normative reference beside that check to Salah Makboul's Call4Agents crash/resume findings (author-reported results; no change to the specification, schemas or runners).
+* Section 3.7: `mustOpen` gates acting answers; Ignore/dismiss is exempt (matches declined wording).
