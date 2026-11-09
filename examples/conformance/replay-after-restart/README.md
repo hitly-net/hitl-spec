@@ -52,3 +52,11 @@ A requester that commits the use record and the effect in one transaction has no
 * It kills processes. It does not test power loss or a storage failure.
 * It does not test a kill in the middle of the action, or an action that fails.
 * It tests the requester only, not a host's create-once retention from section 3.2.
+
+## Related (non-normative)
+
+[Call4Agents crash/resume findings](https://github.com/salahmakboul/call4agents/tree/main/docs/finding) — Salah Makboul's framework experiments illustrating why approval alone does not prevent duplicate effects after restart. Results are author-reported, not independently reproduced by this project.
+
+The experiments describe the same window this check exercises: the author reports two payments, rather than one, on documented resume after a crash between an approved action and the saved progress, in LangGraph, Pydantic AI and OpenAI Agents SDK. That is the failure the control case above reproduces on purpose, and it is why section 3.8 requires the use of a response to be recorded durably before acting, and why the process-kill cases here treat a `requestId` as outcome unknown after a restart.
+
+Credits: [@salahmakboul](https://github.com/salahmakboul) contributed this replay-after-restart conformance check in [PR #11](https://github.com/hitly-net/hitl-spec/pull/11).
