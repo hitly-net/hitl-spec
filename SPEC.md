@@ -70,7 +70,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 | `default` | no | A default answer. The reviewer client decides whether to pre-select it. |
 | `recommended` | no | `{value, reason}`: the requester's recommended answer and why. |
 | `reasonRequired` | no | Array of answer values for which the reviewer MUST give a reason (3.6). |
-| `deadline` | no | When the request expires. If absent, the host SHOULD default to 24 hours from ingest. A host SHOULD refuse a deadline more than 30 days from ingest (section 9). |
+| `deadline` | no | When the request expires. Defaults, a proposed 30-day cap, and refusal of a deadline in the past are in section 9. |
 | `onExpiry` | no | Absent or `"expire"` in v0 (section 9). |
 | `context` | no | `{markdown?, links?, attachments?}` (3.7). |
 | `action` | no | `{name, argsHash}`: the exact action the answer authorises (3.8). |
@@ -83,12 +83,16 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 * The host assigns `id` and returns it to the requester when it accepts the request. A host MUST refuse a submitted request that already carries `id`.
 * `idempotencyKey` is the requester's handle. Create-once replay is scoped to the **creating API key** (the credential that first created the request). A different key MUST NOT replay that request, and MUST NOT be given its `id`, status or payload.
-* The host computes a `payloadHash` over the submitted request, excluding host-assigned fields such as `id`. `b64url(SHA-256(JCS(payload)))` is RECOMMENDED, matching 3.8.
-* Inside the create-once retention window, a repeat submission from the creating key with the same `idempotencyKey` and the same `payloadHash` MUST be treated as the same request: the host returns the existing `id` and MUST NOT create a second ask.
-* A repeat submission from the creating key with the same `idempotencyKey` and a **different** `payloadHash` MUST NOT replay and MUST NOT create a new request. A host that uses HTTP MUST respond `409 Conflict` with code `idempotency_conflict`.
+* The host computes a `payloadHash` over its ingested, normalised envelope, not over the raw `hitl/request/v0` body. The hashed members are `action`, `allowedActions`, `contextMarkdown`, `origin` (including `runId`) and `resumeSchema`. `deadline`, `_meta` and `reason` are not hashed. `b64url(SHA-256(JCS(envelope)))` is RECOMMENDED, matching 3.8.
+* Inside the create-once retention window, a create from the creating key with the same `idempotencyKey` and the same `payloadHash` is a **replay** of the existing request **whatever its state** (open, answered, declined, cancelled or expired): the host returns the existing `id` and MUST NOT create a second ask.
+* A **deliberate re-submit** uses a new `idempotencyKey` and gets a new `requestId` (4.2). That is how a requester opens a new ask after a decline or a rejection. Reusing the same `idempotencyKey` is not a re-submit.
+* A create from the creating key with the same `idempotencyKey` and a **different** `payloadHash` is expected not to replay and not to create a new request. A host that uses HTTP is expected to respond `409 Conflict` with code `idempotency_conflict`. **Pending implementation:** this mismatch refusal (including `409` / `idempotency_conflict`) is not yet on the first host's main branch.
 * The response carries the host's `id` as `requestId`.
-* Create-once records (assigned `id`s, `idempotencyKey` and `payloadHash`) are kept for a retention period. A host SHOULD retain them for 10 days, and SHOULD expose the window it uses. Inside the window the rules above apply; after it expires, the same key MAY create a new request. That window is what drives whether an agent could technically re-submit a request with the same hash, so without a stated retention "already created" is underspecified across restarts and long-lived agents. A requester's durable single-use record for a spent `requestId` (3.8) SHOULD last at least as long as the host's retention window for that request.
-* Re-submitting after a terminal response is always a **new** request (4.2): a new `idempotencyKey`, or wait until retention expires. Reusing the same `idempotencyKey` with a changed payload is not a re-submit; it is `idempotency_conflict`.
+* Create-once records (assigned `id`s, `idempotencyKey` and `payloadHash`) are kept for a retention period.
+
+  > **NOT YET DECIDED.** The length of that window is a **provisional default (current behaviour, not yet confirmed)**. Ten days is what the first host currently uses; it is not a requirement of this specification. A host SHOULD expose the window it uses. After the window expires, the same key MAY create a new request.
+
+  That window is what drives whether an agent could technically re-submit a request with the same hash, so without a stated retention "already created" is underspecified across restarts and long-lived agents. A requester's durable single-use record for a spent `requestId` (3.8) SHOULD last at least as long as the host's retention window for that request.
 * A host SHOULD let a reviewer (or their client) retrieve the original create-once request for verification — the stored payload in a deterministic canonical serialization, ideally with its content hash (section 5) — so the screen can be checked against what was stored, off-host, without trusting the host UI. The create-once record is the source of truth: a host SHOULD NOT substitute a mutable "display snapshot" that can drift from the stored request after it was presented (the `argsHash` of 3.8 binds only the action arguments, not the human-facing payload). A reviewer edit of action arguments (`editedArgs`, 3.8) MUST NOT change this stored record.
 
 ### 3.3 The question
@@ -175,10 +179,13 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 * `cancelled`: the request was withdrawn (for example by the requester or the host) before an answer. `value` MUST be absent.
 * `expired`: the deadline passed with no answer (section 9). `value`, `decidedBy` and `decidedAt` MUST be absent.
 * A reviewer client MAY label the decline action Dismiss, Decline, Skip or similar. There is no separate `dismissed` status in v0: a local widget or tool payload such as `{dismissed: true}` (for example an AG-UI chat card) MUST be reported on the wire as `hitl/response/v0` with `status: "declined"` and no `value`. Do not confuse this with `cancelled`, which is an ask withdrawn by the requester or the host.
-* A reviewer client MAY label an acting answer Respond, Reply or similar. There is no separate `responded` status in v0: a local widget or tool payload that captures a reply (for example `{respond: true}` or a host `respond` decision) MUST be reported on the wire as `hitl/response/v0` with `status: "answered"` and the reply in `value`.
+* **Respond.**
+
+  > **NOT YET DECIDED.** Mapping a host `respond` decision onto `status: "answered"` with the reply in `value` is a **provisional default (current behaviour, not yet confirmed)**. There is no separate `responded` status in v0. How `respond` is carried on `hitl/response/v0` is not a requirement of this specification.
+
 * `decidedBy` records who decided. A shared identity, such as a team board login, is valid as `kind: "group"`. A host SHOULD use `kind: "human"` with a stable per-person `id` when it knows the individual.
-* A request is **terminal** once it has a response (`answered`, `declined`, `cancelled` or `expired`): that `requestId` never changes state again, and a re-submit is always a **new request** with a new `requestId`, not a timestamped mutation of the old one. Edited action arguments (`editedArgs`) appear only on the decision response and MUST NOT change the stored request (3.8).
-* Re-submitting after a decline or a rejection follows 3.2. If the agent revised the action after reading the reviewer's reasons: new `argsHash` and a new `idempotencyKey`. If the arguments are unchanged (a pure retry): a new `requestId`, the same `argsHash`, and a new `idempotencyKey`, or wait until the host's create-once retention expires; otherwise create-once returns the declined request instead of opening a new ask. Reusing the same `idempotencyKey` with a different `payloadHash` MUST fail with `idempotency_conflict` (3.2); it is not a way to open a revised ask.
+* A request is **terminal** once it has a response (`answered`, `declined`, `cancelled` or `expired`): that `requestId` never changes state again. Edited action arguments (`editedArgs`) appear only on the decision response and MUST NOT change the stored request (3.8).
+* Replay and re-submit are distinct (3.2). A create with the same creating key, same `idempotencyKey` and same `payloadHash` inside the retention window **replays** the existing request, whatever its state — including a declined row — and MUST NOT allocate a new `requestId`. A **deliberate re-submit** uses a new `idempotencyKey` and gets a new `requestId`; it is not a timestamped mutation of the old one. If the agent revised the action after reading the reviewer's reasons, that new request also carries a new `argsHash`. Reusing the same `idempotencyKey` with a different `payloadHash` is not a re-submit: the host does not replay and does not create a second row (see 3.2 for the pending `409` / `idempotency_conflict` behaviour).
 * A requester MAY cancel an unanswered request. The host then closes it as `cancelled`. Cancel is scoped to the creating API key: another key MUST NOT cancel the request, and a host that uses HTTP MUST respond `404 Not Found` to any other key (the request is not disclosed). A host MUST refuse cancel of a closed request; a host that uses HTTP MUST respond `409 Conflict`.
 
 ### 4.3 Activity
@@ -194,10 +201,11 @@ A host MAY POST lifecycle notifications to a callback URL the requester has regi
 
 When a host sends a callback:
 
-* The request is POST. When the requester has registered a callback token, the host MUST set `Authorization: Bearer <cb_auth_token>`.
-* The host MAY also attach an HMAC signature. When it does, the signature MUST cover a key id, a timestamp and the POST body, so the receiver can verify authenticity and freshness. Header names for the signature are not settled.
-* The body MUST include a stable `event_id` for that delivery. Receivers MUST treat `event_id` as the de-duplication key: a repeat POST with the same `event_id` is the same event, not a new one.
-* Decision callbacks (the request now has a response) SHOULD be sent when a callback URL is registered. Other lifecycle events are opt-in: a host MUST NOT send them unless the requester has asked for them.
+* The request is POST.
+* **Bearer token (pending implementation).** When the requester has registered a callback token, the host is expected to set `Authorization: Bearer <cb_auth_token>`. This is not yet on the first host's main branch.
+* The host MAY also attach an HMAC signature. When it does, the signed string is `timestamp + "." + raw body` (the raw POST body, not a canonicalised form). A key id MAY be sent in a header; it selects the verifying secret only and is not part of the MAC. A verifier MUST reject an unknown key id.
+* **Stable `event_id` (pending implementation).** The body is expected to include a stable `event_id` for that delivery, which receivers treat as the de-duplication key (a repeat POST with the same `event_id` is the same event). This is not yet on the first host's main branch.
+* Decision callbacks (the request now has a response) SHOULD be sent when a callback URL is registered. **Opt-in lifecycle events (pending implementation):** other lifecycle events (for example presented, opened, cancelled, expired) are expected to be opt-in. This is not yet on the first host's main branch.
 
 ## 5. Events and reviewer activity disclosure
 
@@ -291,8 +299,9 @@ Both sides validate. Neither replaces the other.
 
 ## 9. Expiry outcome
 
-* If `deadline` is absent, the host SHOULD set one 24 hours after it accepts the request.
-* A host SHOULD refuse a `deadline` more than 30 days after acceptance.
+* **Default.** If `deadline` is absent, the first host's MCP path currently applies 24 hours from ingest. Host HTTP ingest currently uses the project's SLA instead. A single host-wide default is not yet specified.
+* **Maximum (proposed).** A host SHOULD refuse a `deadline` more than 30 days after acceptance. This cap is **proposed**; it is not implemented.
+* **Past deadlines (proposed).** A host SHOULD refuse a `deadline` in the past. This is a PM ruling and is **proposed** as a host-wide rule.
 * Expiry is its own outcome. When `deadline` passes with no answer, the host MUST close the request with `status: "expired"` and tell the requester.
 * A host MUST NOT auto-approve, auto-reject or otherwise auto-answer on expiry. A timeout that silently approves is a policy bypass with a clock on it.
 * `onExpiry` MUST be absent or `"expire"` in v0. Other values are reserved for later versions, and a host MUST refuse them.
@@ -336,7 +345,7 @@ These mappings are informative.
   * `text`: string with `minLength`, `maxLength` and `pattern`.
 * `default` may map to the schema's `default`; `recommended` should not, so that it is highlighted rather than pre-selected.
 * The full request rides in `_meta` under `net.hitly/hitl-request`.
-* MCP `accept` with content maps to `answered` (including a binary reject); `decline` maps to `declined`; `cancel` maps to `cancelled`. A host `respond` decision maps to `answered`. Conditional required reasons and `mustOpen` are enforced by the host, since the restricted schema cannot express them.
+* MCP `accept` with content maps to `answered` (including a binary reject); `decline` maps to `declined`; `cancel` maps to `cancelled`. How a host `respond` decision is carried on `hitl/response/v0` is not yet decided (4.2). Conditional required reasons and `mustOpen` are enforced by the host, since the restricted schema cannot express them.
 
 ### 13.2 AG-UI interrupts
 
