@@ -164,6 +164,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 | `requestId` | yes | The host-assigned `id` of the request. |
 | `status` | yes | `answered`, `declined`, `cancelled` or `expired`. |
 | `value` | when answered | The answer, typed per the request's `answerType` (3.4). Ciphertext for `secret`. |
+| `answer` | when the reviewer typed one | The reviewer's typed ask_user answer as a core top-level field: `{kind, value}` plus any extra keys the reviewer's client sent, verbatim (4.2). Not a `_meta` extension. |
 | `reason` | per rules | The reviewer's reason. REQUIRED when `reasonRequired` triggers (3.6). |
 | `decidedBy` | when answered or declined | `{kind, id, display?}`. `kind` is `human`, `group` or `service`. |
 | `decidedAt` | when answered or declined | When the decision was made. |
@@ -183,7 +184,11 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
   > **NOT YET DECIDED.** Mapping a host `respond` decision onto `status: "answered"` with the reply in `value` is a **provisional default (current behaviour, not yet confirmed)**. There is no separate `responded` status in v0. How `respond` is carried on `hitl/response/v0` is not a requirement of this specification.
 
-* **Typed answers.** Where the host's reviewer UI collects a structured answer (an ask_user question), the host MAY additionally carry the reviewer's typed answer verbatim in `_meta` under a reverse-DNS key (for example `net.hitly/answer`). It is an extension only: `value` remains the normative answer on the wire, the extension MUST NOT contradict `value`, and receivers MUST ignore unknown `_meta` keys (section 12).
+* **Typed answers.** Where the host's reviewer UI collects a structured answer (an ask_user question), the reviewer's typed answer is carried as a core top-level `answer` field on the decision response. It is a first-class field, not an extension: the typed answer is NOT carried under `_meta`, and a host MUST NOT require the requester to read the typed answer from a `_meta` key.
+  * Shape: `answer` is an object carrying at least `kind` (the answer kind the reviewer UI collected, for example `"free_text"`) and `value` (the reviewer's answer as typed). Any extra keys the reviewer's client sent alongside them (for example a `confidence`) MUST be preserved.
+  * Presence: `answer` is present exactly when the host holds a typed answer for the decision. When there is none the field is simply absent: a host MUST NOT send `answer: null` or an empty placeholder in its place.
+  * Verbatim: the host MUST return the answer exactly as the reviewer typed it, including unicode, line breaks and an intentionally empty answer (`value: ""`). It MUST NOT alter, trim, normalise or coerce it (7).
+  * Single source: the host MUST NOT also copy the typed answer into `value`. For a host `respond` decision, `value` carries the reviewer's reply text per the provisional default above, never a duplicate of `answer`: `answer` is the single source of the typed answer.
 
 * `decidedBy` records who decided. A shared identity, such as a team board login, is valid as `kind: "group"`. A host SHOULD use `kind: "human"` with a stable per-person `id` when it knows the individual.
 * A request is **terminal** once it has a response (`answered`, `declined`, `cancelled` or `expired`): that `requestId` never changes state again. Edited action arguments (`editedArgs`) appear only on the decision response and MUST NOT change the stored request (3.8).

@@ -45,6 +45,23 @@
         }
       ]
     },
+    "answer": {
+      "description": "The reviewer's typed ask_user answer as a core top-level field (SPEC.md 4.2): {kind, value} plus any extra keys the reviewer's client sent, returned verbatim. Present exactly when the host holds a typed answer; never null. Not carried under _meta.",
+      "type": "object",
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "description": "The reviewer's answer as typed, any JSON value, including an intentionally empty string."
+        }
+      }
+    },
     "reason": {
       "type": "string",
       "minLength": 1
