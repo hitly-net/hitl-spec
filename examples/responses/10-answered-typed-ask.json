@@ -1,0 +1,21 @@
+{
+  "spec": "hitl/response/v0",
+  "requestId": "req_01JB7ASKSLOT",
+  "status": "answered",
+  "answer": {
+    "kind": "free_text",
+    "value": "Morning works ✓\nThe gate code is 4211 - leave it with the café on the corner.\nThanks!",
+    "confidence": 0.95
+  },
+  "decidedBy": {
+    "kind": "human",
+    "id": "usr_01JB7REVIEWER",
+    "display": "Rae Reviewer"
+  },
+  "decidedAt": "2026-10-24T16:05:44Z",
+  "signature": null,
+  "activity": {
+    "presentedAt": "2026-10-24T16:01:02Z",
+    "items": []
+  }
+}

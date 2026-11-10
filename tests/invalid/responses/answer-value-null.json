@@ -1,0 +1,13 @@
+{
+  "spec": "hitl/response/v0",
+  "requestId": "req_01JB7ASKSLOT",
+  "status": "answered",
+  "answer": {
+    "kind": "free_text",
+    "value": null
+  },
+  "decidedBy": { "kind": "human", "id": "usr_01JB7REVIEWER" },
+  "decidedAt": "2026-10-24T16:05:44Z",
+  "signature": null,
+  "activity": { "presentedAt": "2026-10-24T16:01:02Z", "items": [] }
+}

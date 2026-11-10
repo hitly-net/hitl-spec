@@ -45,6 +45,24 @@
         }
       ]
     },
+    "answer": {
+      "description": "The reviewer's typed ask_user answer as a core top-level field (SPEC.md 4.2): {kind, value} plus any extra keys the reviewer's client sent, returned verbatim. Allowed only on status \"answered\". Present exactly when the host holds a typed answer; never null. When present it is the only carrier of the answer: top-level value MUST NOT be present alongside it. Not carried under _meta.",
+      "type": "object",
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "description": "The reviewer's answer as typed: a non-null string, possibly intentionally empty.",
+          "type": "string"
+        }
+      }
+    },
     "reason": {
       "type": "string",
       "minLength": 1
@@ -193,10 +211,41 @@
       },
       "then": {
         "required": [
-          "value",
           "decidedBy",
           "decidedAt"
-        ]
+        ],
+        "if": {
+          "required": [
+            "answer"
+          ]
+        },
+        "then": {
+          "description": "Typed answer: answer is the only carrier; top-level value MUST NOT be present alongside it.",
+          "not": {
+            "required": [
+              "value"
+            ]
+          }
+        },
+        "else": {
+          "description": "No typed answer: value carries the answer and MUST be present; an empty-string placeholder is refused.",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "else": {
+        "description": "answer is allowed only on status answered.",
+        "not": {
+          "required": [
+            "answer"
+          ]
+        }
       }
     },
     {
