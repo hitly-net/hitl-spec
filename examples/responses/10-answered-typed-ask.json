@@ -2,7 +2,6 @@
   "spec": "hitl/response/v0",
   "requestId": "req_01JB7ASKSLOT",
   "status": "answered",
-  "value": "Morning slot, bring it Tuesday.",
   "answer": {
     "kind": "free_text",
     "value": "Morning works ✓\nThe gate code is 4211 - leave it with the café on the corner.\nThanks!",

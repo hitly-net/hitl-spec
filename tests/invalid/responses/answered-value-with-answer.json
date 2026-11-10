@@ -1,0 +1,14 @@
+{
+  "spec": "hitl/response/v0",
+  "requestId": "req_01JB7ASKSLOT",
+  "status": "answered",
+  "value": "Morning slot, bring it Tuesday.",
+  "answer": {
+    "kind": "free_text",
+    "value": "Morning works"
+  },
+  "decidedBy": { "kind": "human", "id": "usr_01JB7REVIEWER" },
+  "decidedAt": "2026-10-24T16:05:44Z",
+  "signature": null,
+  "activity": { "presentedAt": "2026-10-24T16:01:02Z", "items": [] }
+}
